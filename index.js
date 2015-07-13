@@ -8,11 +8,11 @@ function EncryptedField(Sequelize, key, opt) {
     var self = this;
     self.key = new Buffer(key, 'hex');
     self.Sequelize = Sequelize;
-    
+
     opt = opt || {};
     self._algorithm = opt.algorithm || 'aes-256-cbc';
     self._iv_length = opt.iv_length || 16;
-    self._db_encoding = opt.db_encoding || undefined;
+    self._db_encoding = opt.db_encoding || 'binary';
 };
 
 EncryptedField.prototype.vault = function(name) {
@@ -40,8 +40,8 @@ EncryptedField.prototype.vault = function(name) {
             var cipher = crypto.createCipheriv(self._algorithm, self.key, new_iv);
 
             var enc_final = Buffer.concat([
-                cipher.update(new_iv),
-                cipher.update(JSON.stringify(value)),
+                new_iv,
+                cipher.update(JSON.stringify(value),'utf8'),
                 cipher.final()
             ]);
 
