@@ -8,10 +8,11 @@ function EncryptedField(Sequelize, key, opt) {
     var self = this;
     self.key = new Buffer(key, 'hex');
     self.Sequelize = Sequelize;
-
+    
     opt = opt || {};
     self._algorithm = opt.algorithm || 'aes-256-cbc';
     self._iv_length = opt.iv_length || 16;
+    self._db_encoding = opt.db_encoding || undefined;
 };
 
 EncryptedField.prototype.vault = function(name) {
@@ -24,9 +25,7 @@ EncryptedField.prototype.vault = function(name) {
             if (!previous) {
                 return {};
             }
-
-            previous = new Buffer(previous);
-
+            previous = new Buffer( previous, self._db_encoding );
             var iv = previous.slice(0, self._iv_length);
             var content = previous.slice(self._iv_length, previous.length);
             var decipher = crypto.createDecipheriv(self._algorithm, self.key, iv);
@@ -40,9 +39,13 @@ EncryptedField.prototype.vault = function(name) {
 
             var cipher = crypto.createCipheriv(self._algorithm, self.key, new_iv);
 
-            cipher.end(JSON.stringify(value), 'utf-8');
-            var enc_final = Buffer.concat([new_iv, cipher.read()]);
-            var previous = this.setDataValue(name, enc_final);
+            var enc_final = Buffer.concat([
+                cipher.update(new_iv),
+                cipher.update(JSON.stringify(value)),
+                cipher.final()
+            ]);
+
+            var previous = this.setDataValue( name, enc_final.toString(self._db_encoding) );
         }
     }
 };
